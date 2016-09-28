@@ -32,8 +32,22 @@
 package org.apache.http.impl;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 
+import libcore.valera.ValeraIOManager;
+import libcore.valera.ValeraUtil;
+
+import org.apache.http.Header;
+import org.apache.http.HttpEntityEnclosingRequest;
+import org.apache.http.HttpException;
+import org.apache.http.HttpRequest;
+import org.apache.http.ProtocolException;
+import org.apache.http.impl.client.EntityEnclosingRequestWrapper;
+import org.apache.http.impl.client.RequestWrapper;
+import org.apache.http.impl.io.SocketInputBuffer;
+import org.apache.http.impl.io.SocketOutputBuffer;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 
@@ -71,6 +85,45 @@ public class DefaultHttpClientConnection extends SocketHttpClientConnection {
         }
         super.bind(socket, params);
     }
+    
+    /* valera begin */
+    private RequestWrapper wrapRequest(
+            final HttpRequest request) throws ProtocolException {
+        if (request instanceof HttpEntityEnclosingRequest) {
+            return new EntityEnclosingRequestWrapper(
+                    (HttpEntityEnclosingRequest) request);
+        } else {
+            return new RequestWrapper(
+                    request);
+        }
+    }
+    
+    // DefaultHttpClientConnection can send request here. Need to map url and connId.
+    @Override
+    public void sendRequestHeader(HttpRequest request) throws HttpException, IOException {
+    	HttpRequest orig = request;
+        RequestWrapper origWrapper = wrapRequest(orig);
+        String addr = this.socket.getInetAddress().toString();
+        
+    	int connId = ValeraIOManager.getInstance().getUniqueConnId();
+        ValeraIOManager.getInstance().establishConnectionMap(connId, origWrapper.getMethod(),
+        		origWrapper.getURI(), "NA_DHCC");
+        
+        ValeraUtil.valeraAssert(this.inbuffer instanceof SocketInputBuffer, 
+				"DefaultHttpClientConnection's inbuffer should be SocketInputBuffer");
+		SocketInputBuffer inbuffer = (SocketInputBuffer) this.inbuffer;
+		InputStream socketIn = inbuffer.instream;
+		ValeraIOManager.getInstance().setConnIdForSocketIn(socketIn, connId);
+		
+		ValeraUtil.valeraAssert(this.outbuffer instanceof SocketOutputBuffer, 
+				"DefaultHttpClientConnection's outbuffer should be SocketOutputBuffer");
+		SocketOutputBuffer outbuffer = (SocketOutputBuffer) this.outbuffer;
+		OutputStream socketOut = outbuffer.outstream;
+		ValeraIOManager.getInstance().setConnIdForSocketOut(socketOut, connId);
+		
+        super.sendRequestHeader(request);
+    }
+    /* valera end */
 
     public String toString() {
         StringBuffer buffer = new StringBuffer();

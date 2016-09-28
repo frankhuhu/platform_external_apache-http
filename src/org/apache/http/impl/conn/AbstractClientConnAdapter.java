@@ -132,7 +132,10 @@ public abstract class AbstractClientConnAdapter
         duration = Long.MAX_VALUE;
     }
 
-    protected OperatedClientConnection getWrappedConnection() {
+    /* valera begin */
+    public
+    /* valera end */
+    OperatedClientConnection getWrappedConnection() {
         return wrappedConnection;
     }
     

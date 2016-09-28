@@ -52,7 +52,10 @@ import org.apache.http.util.CharArrayBuffer;
  */
 public abstract class AbstractSessionInputBuffer implements SessionInputBuffer {
 
-    private InputStream instream;
+	/* valera begin */
+    // private InputStream instream;
+	public InputStream instream;
+    /* valera end */
     private byte[] buffer;
     private int bufferpos;
     private int bufferlen;

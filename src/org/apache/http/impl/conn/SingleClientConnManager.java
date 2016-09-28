@@ -447,7 +447,10 @@ public class SingleClientConnManager implements ClientConnectionManager {
     /**
      * The connection adapter used by this manager.
      */
-    protected class ConnAdapter extends AbstractPooledConnAdapter {
+    /* valera begin */
+    public
+    /* valera end */
+    class ConnAdapter extends AbstractPooledConnAdapter {
 
         /**
          * Creates a new connection adapter.

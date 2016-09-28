@@ -32,12 +32,19 @@
 package org.apache.http.impl.client;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+/* valera begin */
+import libcore.valera.ValeraIOManager;
+import libcore.valera.ValeraUtil;
+/* valera end */
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -77,6 +84,7 @@ import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.ClientConnectionRequest;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.conn.ManagedClientConnection;
+import org.apache.http.conn.OperatedClientConnection;
 import org.apache.http.conn.params.ConnManagerParams;
 import org.apache.http.conn.routing.BasicRouteDirector;
 import org.apache.http.conn.routing.HttpRoute;
@@ -84,6 +92,12 @@ import org.apache.http.conn.routing.HttpRouteDirector;
 import org.apache.http.conn.routing.HttpRoutePlanner;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.entity.BufferedHttpEntity;
+import org.apache.http.impl.conn.DefaultClientConnection;
+import org.apache.http.impl.conn.SingleClientConnManager;
+import org.apache.http.impl.conn.SingleClientConnManager.ConnAdapter;
+import org.apache.http.impl.conn.tsccm.BasicPooledConnAdapter;
+import org.apache.http.impl.io.SocketInputBuffer;
+import org.apache.http.impl.io.SocketOutputBuffer;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
@@ -301,6 +315,9 @@ public class DefaultRequestDirector implements RequestDirector {
         boolean reuse = false;
         HttpResponse response = null;
         boolean done = false;
+        /* valera begin */
+        int connId = -1;
+        /* vlaera end */
         try {
             while (!done) {
                 // In this loop, the RoutedRequest may be replaced by a
@@ -324,6 +341,11 @@ public class DefaultRequestDirector implements RequestDirector {
                     
                     try {
                         managedConn = connRequest.getConnection(timeout, TimeUnit.MILLISECONDS);
+                        /* valera begin */
+                        connId = ValeraIOManager.getInstance().getUniqueConnId();
+                        ValeraIOManager.getInstance().establishConnectionMap(connId, origWrapper.getMethod(),
+                        		origWrapper.getURI(), target.toString());
+                        /* valera end */
                     } catch(InterruptedException interrupted) {
                         InterruptedIOException iox = new InterruptedIOException();
                         iox.initCause(interrupted);
@@ -425,6 +447,51 @@ public class DefaultRequestDirector implements RequestDirector {
                         if (this.log.isDebugEnabled()) {
                             this.log.debug("Attempt " + execCount + " to execute request");
                         }
+                        /* valera begin */
+                        if (Thread.currentThread().valeraIsEnabled()) {
+                        	if (managedConn instanceof SingleClientConnManager.ConnAdapter) {
+                        		ConnAdapter conn = (ConnAdapter) managedConn;
+                        		OperatedClientConnection occ = conn.getWrappedConnection();
+                        		ValeraUtil.valeraAssert(occ instanceof DefaultClientConnection, 
+                        				"Wrappered Connection should be DefaultClientConnection");
+                        		DefaultClientConnection dcc = (DefaultClientConnection) occ;
+                        		ValeraUtil.valeraAssert(connId != -1, "connId = -1 for " + dcc.getTargetHost());
+                        		
+                        		ValeraUtil.valeraAssert(dcc.inbuffer instanceof SocketInputBuffer, 
+                        				"DefaultClientConnection's inbuffer should be SocketInputBuffer");
+                        		SocketInputBuffer inbuffer = (SocketInputBuffer) dcc.inbuffer;
+                        		InputStream socketIn = inbuffer.instream;
+                        		ValeraIOManager.getInstance().setConnIdForSocketIn(socketIn, connId);
+                        		
+                        		ValeraUtil.valeraAssert(dcc.outbuffer instanceof SocketOutputBuffer, 
+                        				"DefaultClientConnection's outbuffer should be SocketOutputBuffer");
+                        		SocketOutputBuffer outbuffer = (SocketOutputBuffer) dcc.outbuffer;
+                        		OutputStream socketOut = outbuffer.outstream;
+                        		ValeraIOManager.getInstance().setConnIdForSocketOut(socketOut, connId);
+                        	} else if (managedConn instanceof BasicPooledConnAdapter) {
+                        		BasicPooledConnAdapter conn = (BasicPooledConnAdapter) managedConn;
+                        		OperatedClientConnection occ = conn.getWrappedConnection();
+                        		ValeraUtil.valeraAssert(occ instanceof DefaultClientConnection, 
+                        				"Wrappered Connection should be DefaultClientConnection");
+                        		DefaultClientConnection dcc = (DefaultClientConnection) occ;
+                        		ValeraUtil.valeraAssert(connId != -1, "connId = -1 for " + dcc.getTargetHost());
+                        		
+                        		ValeraUtil.valeraAssert(dcc.inbuffer instanceof SocketInputBuffer, 
+                        				"DefaultClientConnection's inbuffer should be SocketInputBuffer");
+                        		SocketInputBuffer inbuffer = (SocketInputBuffer) dcc.inbuffer;
+                        		InputStream socketIn = inbuffer.instream;
+                        		ValeraIOManager.getInstance().setConnIdForSocketIn(socketIn, connId);
+                        		
+                        		ValeraUtil.valeraAssert(dcc.outbuffer instanceof SocketOutputBuffer, 
+                        				"DefaultClientConnection's outbuffer should be SocketOutputBuffer");
+                        		SocketOutputBuffer outbuffer = (SocketOutputBuffer) dcc.outbuffer;
+                        		OutputStream socketOut = outbuffer.outstream;
+                        		ValeraIOManager.getInstance().setConnIdForSocketOut(socketOut, connId);
+                        	} else {
+                        		ValeraUtil.valeraAssert(false, "Unhandled managedConn");
+                        	}
+                        }
+                        /* valera end */
                         response = requestExec.execute(wrapper, managedConn, context);
                         retrying = false;
                         

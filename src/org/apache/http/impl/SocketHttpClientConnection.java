@@ -58,7 +58,10 @@ public class SocketHttpClientConnection
         extends AbstractHttpClientConnection implements HttpInetConnection {
 
     private volatile boolean open;
-    private Socket socket = null;
+    /* valera begin */
+    // private Socket socket = null;
+    protected Socket socket = null;
+    /* valera end */
     
     public SocketHttpClientConnection() {
         super();

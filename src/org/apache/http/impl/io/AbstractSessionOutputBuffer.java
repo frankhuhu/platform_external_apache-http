@@ -55,7 +55,10 @@ public abstract class AbstractSessionOutputBuffer implements SessionOutputBuffer
     
     private static final int MAX_CHUNK = 256;
     
-    private OutputStream outstream;
+    /* valera begin */
+    // private OutputStream outstream;
+    public OutputStream outstream;
+    /* valera end */
     private ByteArrayBuffer buffer;
         
     private String charset = HTTP.US_ASCII;

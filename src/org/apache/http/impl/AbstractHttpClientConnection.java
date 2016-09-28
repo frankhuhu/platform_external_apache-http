@@ -69,8 +69,12 @@ public abstract class AbstractHttpClientConnection implements HttpClientConnecti
     private final EntitySerializer entityserializer;
     private final EntityDeserializer entitydeserializer;
     
-    private SessionInputBuffer inbuffer = null;
-    private SessionOutputBuffer outbuffer = null;
+    /* valera begin */
+    // private SessionInputBuffer inbuffer = null;
+    // private SessionOutputBuffer outbuffer = null;
+    public SessionInputBuffer inbuffer = null;
+    public SessionOutputBuffer outbuffer = null;
+    /* valera end */
     private HttpMessageParser responseParser = null;
     private HttpMessageWriter requestWriter = null;
     private HttpConnectionMetricsImpl metrics = null;
